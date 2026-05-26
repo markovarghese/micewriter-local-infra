@@ -25,11 +25,23 @@ repo:
 
 ## Deploy MinIO and Nessie into the cluster
 up: repo
+	@echo "Installing cert-manager..."
+	$(KUBECTL) apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.1/cert-manager.yaml
+	$(KUBECTL) wait --for=condition=Available deployment --all -n cert-manager --timeout=120s
+	@echo "Deploying in-cluster registry..."
+	$(KUBECTL) create namespace $(NAMESPACE) --dry-run=client -o yaml > temp-ns.yaml
+	$(KUBECTL) apply -f temp-ns.yaml
+	rm -f temp-ns.yaml
+	$(KUBECTL) apply -f registry/registry.yaml
+	$(KUBECTL) rollout status deployment/registry -n $(NAMESPACE) --timeout=120s
+	@echo "Deploying MinIO..."
 	$(HELM) upgrade --install $(MINIO_RELEASE) $(MINIO_CHART) \
 		--namespace $(NAMESPACE) --create-namespace \
 		--version $(MINIO_VERSION) \
 		--values minio/values.yaml \
 		--wait
+	@echo "Provisioning MinIO iceberg bucket..."
+	$(KUBECTL) exec -n $(NAMESPACE) deployment/micewriter-minio -- sh -c "mc alias set local http://localhost:9000 micewriter micewriter123 && mc mb local/iceberg --ignore-existing"
 	$(HELM) upgrade --install $(NESSIE_RELEASE) nessie/$(NESSIE_CHART) \
 		--namespace $(NAMESPACE) --create-namespace \
 		--version $(NESSIE_VERSION) \

@@ -14,9 +14,9 @@ $ErrorActionPreference = "Stop"
 
 # Path to the kubeconfig produced by the k3sonhyperv Ansible playbook.
 # Update this if your k3sonhyperv repo is in a different location.
-$kubeconfig = "D:\githubrepos\k3sonhyperv\kubeconfig"
+$kubeconfig = "C:\Users\marko\source\repos\k3sonhyperv\kubeconfig"
 if (-not (Test-Path $kubeconfig)) {
-    Write-Error "kubeconfig not found at $kubeconfig — run install-k3s.yml first."
+    Write-Error "kubeconfig not found at $kubeconfig - run install-k3s.yml first."
     exit 1
 }
 
@@ -58,7 +58,9 @@ switch ($Target) {
         Invoke-Kubectl wait --for=condition=Available deployment --all -n cert-manager --timeout=120s
 
         Write-Host "Deploying in-cluster registry..."
-        Invoke-Kubectl create namespace $namespace --dry-run=client -o yaml | Invoke-Kubectl apply -f -
+        Invoke-Kubectl create namespace $namespace --dry-run=client -o yaml > temp-ns.yaml
+        Invoke-Kubectl apply -f temp-ns.yaml
+        Remove-Item temp-ns.yaml -ErrorAction SilentlyContinue
         Invoke-Kubectl apply -f registry/registry.yaml
         Invoke-Kubectl rollout status deployment/registry -n $namespace --timeout=120s
 
@@ -68,6 +70,9 @@ switch ($Target) {
             --version $minioVersion `
             --values minio/values.yaml `
             --wait
+
+        Write-Host "Provisioning MinIO iceberg bucket..."
+        Invoke-Kubectl exec -n $namespace deployment/micewriter-minio -- sh -c "mc alias set local http://localhost:9000 micewriter micewriter123 && mc mb local/iceberg --ignore-existing"
 
         Write-Host "Deploying Nessie..."
         Invoke-Helm upgrade --install $nessieRelease $nessieChart `

@@ -1,6 +1,30 @@
 # Bitnami MinIO — dev values for k3s (local-path provisioner + LoadBalancer)
 mode: standalone
 
+image:
+  registry: docker.io
+  repository: minio/minio
+  tag: latest
+
+global:
+  security:
+    allowInsecureImages: true
+
+command: ["minio"]
+args:
+  - "server"
+  - "/bitnami/minio/data"
+  - "--console-address"
+  - ":9001"
+
+console:
+  enabled: false
+
+clientImage:
+  registry: docker.io
+  repository: minio/mc
+  tag: latest
+
 auth:
   rootUser: micewriter
   rootPassword: micewriter123
@@ -21,7 +45,7 @@ consoleIngress:
 
 # Auto-create the iceberg bucket on first deploy
 provisioning:
-  enabled: true
+  enabled: false
   buckets:
     - name: iceberg
 

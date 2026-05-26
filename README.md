@@ -28,6 +28,8 @@ the registry:
 
 ## Quick Start
 
+> **Note**: If PowerShell blocks the script with an execution policy error, prefix your commands with `powershell -ExecutionPolicy Bypass -File` (e.g. `powershell -ExecutionPolicy Bypass -File .\run.ps1 up`).
+
 ```powershell
 # Deploy cert-manager, the in-cluster registry, MinIO, and Nessie
 .\run.ps1 up
@@ -46,7 +48,7 @@ the registry:
 | Nessie REST | http://k8s-node-1.local:19120/api/v1 | Nessie native API |
 | Iceberg REST | http://k8s-node-1.local:19120/iceberg/v1 | Use as `NESSIE_URI` in the engine |
 
-The `iceberg` bucket is created automatically by MinIO's provisioning job on first deploy.
+The `iceberg` bucket is created automatically during the deployment process.
 
 ## Commands
 
@@ -59,7 +61,7 @@ The `iceberg` bucket is created automatically by MinIO's provisioning job on fir
 
 `helm` and `kubectl` are invoked inside Docker containers — no native tooling required on
 the host beyond Docker Desktop. The kubeconfig is read from
-`D:\githubrepos\k3sonhyperv\kubeconfig` (update the path in `run.ps1` if different).
+`C:\Users\marko\source\repos\k3sonhyperv\kubeconfig` (update the path in `run.ps1` if different).
 
 ## What `up` installs
 
