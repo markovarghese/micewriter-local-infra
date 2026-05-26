@@ -1,0 +1,34 @@
+# Bitnami MinIO — dev values for k3s (local-path provisioner + LoadBalancer)
+mode: standalone
+
+auth:
+  rootUser: micewriter
+  rootPassword: micewriter123
+
+persistence:
+  enabled: true
+  storageClass: local-path
+  size: 10Gi
+
+service:
+  type: LoadBalancer
+
+ingress:
+  enabled: false
+
+consoleIngress:
+  enabled: false
+
+# Auto-create the iceberg bucket on first deploy
+provisioning:
+  enabled: true
+  buckets:
+    - name: iceberg
+
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 100m
+  limits:
+    memory: 512Mi
+    cpu: 500m

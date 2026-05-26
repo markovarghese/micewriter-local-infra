@@ -1,0 +1,21 @@
+# Apache Nessie — dev values for k3s (in-memory backend + LoadBalancer)
+
+# Use in-memory version store — data is lost on pod restart (fine for local dev)
+versionStoreType: IN_MEMORY
+
+replicaCount: 1
+
+service:
+  type: LoadBalancer
+  port: 19120
+
+ingress:
+  enabled: false
+
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 100m
+  limits:
+    memory: 512Mi
+    cpu: 500m
