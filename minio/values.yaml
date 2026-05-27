@@ -20,6 +20,10 @@ args:
 console:
   enabled: false
 
+extraEnvVars:
+  - name: MINIO_BROWSER
+    value: "on"
+
 clientImage:
   registry: docker.io
   repository: minio/mc
@@ -36,6 +40,11 @@ persistence:
 
 service:
   type: LoadBalancer
+  extraPorts:
+    - name: console
+      port: 9001
+      targetPort: 9001
+      protocol: TCP
 
 ingress:
   enabled: false

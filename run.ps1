@@ -108,5 +108,17 @@ switch ($Target) {
         Invoke-Kubectl get pods -n $namespace -o wide
     }
 
-    default { Write-Error "Unknown target '$Target'. Use: up | down | clean | status" }
+    "console" {
+        Write-Host "Forwarding MinIO Console to http://localhost:9001 (Press Ctrl+C to stop)" -ForegroundColor Green
+        try {
+            while ($true) {
+                docker run --rm -p 9001:9001 -v "${kubeconfig}:/kubeconfig:ro" -e KUBECONFIG=/kubeconfig bitnami/kubectl port-forward svc/micewriter-minio 9001:9001 --address 0.0.0.0 -n micewriter-infra
+                Start-Sleep -Milliseconds 500
+            }
+        } catch {
+            Write-Host "Stopped MinIO console."
+        }
+    }
+
+    default { Write-Error "Unknown target '$Target'. Use: up | down | clean | status | console" }
 }

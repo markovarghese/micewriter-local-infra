@@ -5,6 +5,10 @@ versionStoreType: IN_MEMORY
 
 replicaCount: 1
 
+env:
+  - name: NESSIE_CATALOG_DEFAULT_WAREHOUSE
+    value: s3://iceberg
+
 service:
   type: LoadBalancer
   port: 19120
