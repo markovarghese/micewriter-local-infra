@@ -55,7 +55,7 @@ Deployment order in `up`:
 
 ### Network — ServiceLB, not Ingress
 
-Services use k3s's built-in Klipper LoadBalancer to bind directly to node IPs. This enables mDNS routing to `k8s-node-1.local` without configuring an Ingress controller. The `minio/console-ingress.yaml` exists but is intentionally unused.
+Services use k3s's built-in Klipper LoadBalancer to bind directly to node IPs. This enables mDNS routing to `k8s-node-1.local` without configuring an Ingress controller.
 
 | Service | Endpoint |
 |---|---|
