@@ -12,16 +12,18 @@ param([Parameter(Mandatory)][string]$Target)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# Path to the kubeconfig produced by the k3sonhyperv Ansible playbook.
-# Update this if your k3sonhyperv repo is in a different location.
-$kubeconfig = "C:\Users\marko\source\repos\k3sonhyperv\kubeconfig"
+if ($env:KUBECONFIG) {
+    $kubeconfig = $env:KUBECONFIG
+} else {
+    $kubeconfig = "$HOME\.kube\config"
+}
 if (-not (Test-Path $kubeconfig)) {
-    Write-Error "kubeconfig not found at $kubeconfig - run install-k3s.yml first."
+    Write-Error "kubeconfig not found at $kubeconfig"
     exit 1
 }
 
-docker info > $null 2>&1
-if ($LASTEXITCODE -ne 0) { Write-Error "Docker is not running."; exit 1 }
+# docker info > $null 2>&1
+# if ($LASTEXITCODE -ne 0) { Write-Error "Docker is not running."; exit 1 }
 
 $namespace     = "micewriter-infra"
 $certVersion   = "v1.15.1"
