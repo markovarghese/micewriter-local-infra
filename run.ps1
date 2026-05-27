@@ -2,10 +2,13 @@
 .SYNOPSIS
   Manage the micewriter local data lake on k3s.
 .EXAMPLE
-  .\run.ps1 up
-  .\run.ps1 down
-  .\run.ps1 clean
-  .\run.ps1 status
+  .\run.ps1 up          # Deploy core infra (cert-manager, registry, MinIO, Nessie)
+  .\run.ps1 down        # Uninstall MinIO + Nessie (keeps namespace/PVCs)
+  .\run.ps1 clean       # Full teardown including namespace and PVCs
+  .\run.ps1 status      # Show pod status
+  .\run.ps1 console     # Port-forward MinIO console to localhost:9001
+  .\run.ps1 query-up    # Deploy Trino + Querybook (run after up)
+  .\run.ps1 query-down  # Tear down Trino + Querybook
 #>
 param([Parameter(Mandatory)][string]$Target)
 
@@ -29,11 +32,13 @@ $namespace     = "micewriter-infra"
 $certVersion   = "v1.15.1"
 $minioRelease  = "micewriter-minio"
 $nessieRelease = "micewriter-nessie"
+$trinoRelease  = "trino"
 $minioChart    = "oci://registry-1.docker.io/bitnamicharts/minio"
 $minioVersion  = "17.0.21"
 $nessieChart   = "nessie"
 $nessieRepo    = "https://charts.projectnessie.org"
 $nessieVersion = "0.69.0"
+$trinoRepo     = "https://trinodb.github.io/charts"
 
 function Invoke-Kubectl {
     docker run --rm -i `
@@ -120,5 +125,33 @@ switch ($Target) {
         }
     }
 
-    default { Write-Error "Unknown target '$Target'. Use: up | down | clean | status | console" }
+    "query-up" {
+        Write-Host "Adding Trino Helm repo..."
+        Invoke-Helm repo add trino $trinoRepo
+        Invoke-Helm repo update
+
+        Write-Host "Deploying Trino..."
+        Invoke-Helm upgrade --install $trinoRelease trino/trino `
+            --namespace $namespace `
+            --values trino/values.yaml `
+            --wait
+
+        Write-Host "Deploying Querybook (MySQL, Redis, web, worker)..."
+        Invoke-Kubectl apply -f querybook/querybook.yaml
+
+        Write-Host ""
+        Write-Host "Query stack is up."
+        Write-Host "  Trino         : http://k8s-node-1.local:8080"
+        Write-Host "  Querybook     : http://k8s-node-1.local:10001"
+        Write-Host ""
+        Write-Host "Register Trino in Querybook admin UI (/admin/query_engine/):"
+        Write-Host "  Language: trino  |  Host: trino.$namespace.svc.cluster.local  |  Port: 8080  |  Catalog: iceberg"
+    }
+
+    "query-down" {
+        Invoke-Helm uninstall $trinoRelease --namespace $namespace --ignore-not-found
+        Invoke-Kubectl delete -f querybook/querybook.yaml --ignore-not-found
+    }
+
+    default { Write-Error "Unknown target '$Target'. Use: up | down | clean | status | console | query-up | query-down" }
 }

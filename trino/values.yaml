@@ -1,0 +1,34 @@
+additionalCatalogs:
+  iceberg: |
+    connector.name=iceberg
+    iceberg.catalog.type=rest
+    iceberg.rest-catalog.uri=http://micewriter-nessie.micewriter-infra.svc.cluster.local:19120/iceberg/v1
+    fs.native-s3.enabled=true
+    s3.endpoint=http://micewriter-minio.micewriter-infra.svc.cluster.local:9000
+    s3.region=us-east-1
+    s3.aws-access-key=micewriter
+    s3.aws-secret-key=micewriter123
+    s3.path-style-access=true
+
+service:
+  type: LoadBalancer
+  port: 8080
+
+coordinator:
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 200m
+    limits:
+      memory: 1Gi
+      cpu: 500m
+
+worker:
+  replicas: 1
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 200m
+    limits:
+      memory: 1Gi
+      cpu: 500m
