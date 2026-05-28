@@ -15,8 +15,10 @@ MINIO_VERSION  := 17.0.21
 NESSIE_CHART   := nessie
 NESSIE_VERSION := 0.69.0
 NESSIE_REPO    := https://charts.projectnessie.org
+TRINO_RELEASE  := trino
+TRINO_REPO     := https://trinodb.github.io/charts
 
-.PHONY: up down status repo clean
+.PHONY: up down status repo clean console query-up query-down test
 
 ## Add required Helm repos
 repo:
@@ -42,7 +44,8 @@ up: repo
 		--wait
 	@echo "Provisioning MinIO iceberg bucket..."
 	$(KUBECTL) exec -n $(NAMESPACE) deployment/micewriter-minio -- sh -c "mc alias set local http://localhost:9000 micewriter micewriter123 && mc mb local/iceberg --ignore-existing"
-	$(HELM) upgrade --install $(NESSIE_RELEASE) nessie/$(NESSIE_CHART) \
+	$(HELM) upgrade --install $(NESSIE_RELEASE) $(NESSIE_CHART) \
+		--repo $(NESSIE_REPO) \
 		--namespace $(NAMESPACE) --create-namespace \
 		--version $(NESSIE_VERSION) \
 		--values nessie/values.yaml \
@@ -63,6 +66,41 @@ down:
 ## Show pod status
 status:
 	$(KUBECTL) get pods -n $(NAMESPACE) -o wide
+
+## Port-forward MinIO console to localhost:9001
+console:
+	@echo "Forwarding MinIO Console to http://localhost:9001 (Press Ctrl+C to stop)"
+	@while true; do \
+		docker run --rm -i -p 9001:9001 -v "$(KUBE_CONFIG):/.kube/config" -e KUBECONFIG=/.kube/config bitnami/kubectl:latest port-forward svc/$(MINIO_RELEASE) 9001:9001 --address 0.0.0.0 -n $(NAMESPACE); \
+		sleep 0.5; \
+	done
+
+## Deploy Trino and Querybook
+query-up:
+	@echo "Deploying Trino..."
+	$(HELM) upgrade --install $(TRINO_RELEASE) trino \
+		--repo $(TRINO_REPO) \
+		--namespace $(NAMESPACE) \
+		--values trino/values.yaml \
+		--wait
+	@echo "Deploying Querybook (MySQL, Redis, web, worker)..."
+	$(KUBECTL) apply -f querybook/querybook.yaml
+	@echo ""
+	@echo "✓ Query stack is up."
+	@echo "  Trino         : http://k8s-node-1.local:8080"
+	@echo "  Querybook     : http://k8s-node-1.local:10001"
+	@echo ""
+	@echo "Register Trino in Querybook admin UI (/admin/query_engine/):"
+	@echo "  Language: trino  |  Host: trino.$(NAMESPACE).svc.cluster.local  |  Port: 8080  |  Catalog: iceberg"
+
+## Tear down Trino and Querybook
+query-down:
+	$(HELM) uninstall $(TRINO_RELEASE) --namespace $(NAMESPACE) --ignore-not-found
+	$(KUBECTL) delete -f querybook/querybook.yaml --ignore-not-found
+
+## Run integration tests against Trino
+test:
+	pwsh ./test.ps1
 
 ## Purge PVCs to reset state completely
 clean: down

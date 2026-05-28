@@ -9,6 +9,7 @@
   .\run.ps1 console     # Port-forward MinIO console to localhost:9001
   .\run.ps1 query-up    # Deploy Trino + Querybook (run after up)
   .\run.ps1 query-down  # Tear down Trino + Querybook
+  .\run.ps1 test        # Run Iceberg CRUD integration tests via Trino
 #>
 param([Parameter(Mandatory)][string]$Target)
 
@@ -24,9 +25,6 @@ if (-not (Test-Path $kubeconfig)) {
     Write-Error "kubeconfig not found at $kubeconfig"
     exit 1
 }
-
-# docker info > $null 2>&1
-# if ($LASTEXITCODE -ne 0) { Write-Error "Docker is not running."; exit 1 }
 
 $namespace     = "micewriter-infra"
 $certVersion   = "v1.15.1"
@@ -79,7 +77,7 @@ switch ($Target) {
             --wait
 
         Write-Host "Provisioning MinIO iceberg bucket..."
-        Invoke-Kubectl exec -n $namespace deployment/micewriter-minio -- sh -c "mc alias set local http://localhost:9000 micewriter micewriter123 && mc mb local/iceberg --ignore-existing"
+        Invoke-Kubectl exec -n $namespace deployment/micewriter-minio "--" sh -c "mc alias set local http://localhost:9000 micewriter micewriter123 && mc mb local/iceberg --ignore-existing"
 
         Write-Host "Deploying Nessie..."
         Invoke-Helm upgrade --install $nessieRelease $nessieChart `
@@ -126,12 +124,9 @@ switch ($Target) {
     }
 
     "query-up" {
-        Write-Host "Adding Trino Helm repo..."
-        Invoke-Helm repo add trino $trinoRepo
-        Invoke-Helm repo update
-
         Write-Host "Deploying Trino..."
-        Invoke-Helm upgrade --install $trinoRelease trino/trino `
+        Invoke-Helm upgrade --install $trinoRelease trino `
+            --repo $trinoRepo `
             --namespace $namespace `
             --values trino/values.yaml `
             --wait
@@ -153,5 +148,9 @@ switch ($Target) {
         Invoke-Kubectl delete -f querybook/querybook.yaml --ignore-not-found
     }
 
-    default { Write-Error "Unknown target '$Target'. Use: up | down | clean | status | console | query-up | query-down" }
+    "test" {
+        & "$PSScriptRoot\test.ps1"
+    }
+
+    default { Write-Error "Unknown target '$Target'. Use: up | down | clean | status | console | query-up | query-down | test" }
 }

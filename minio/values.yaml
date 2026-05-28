@@ -20,10 +20,6 @@ args:
 console:
   enabled: false
 
-extraEnvVars:
-  - name: MINIO_BROWSER
-    value: "on"
-
 clientImage:
   registry: docker.io
   repository: minio/mc
