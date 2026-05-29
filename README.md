@@ -7,7 +7,7 @@ Local data lake simulator: deploys **MinIO** (S3-compatible object store) and **
 
 | Tool | Purpose |
 |------|---------|
-| Docker Desktop | Runs `helm` and `kubectl` via containers — no native install needed |
+| Docker Desktop | Runs `helm` via containers — no native install needed |
 
 Before running `.\run.ps1 up` for the first time, add the local registry to Docker Desktop's
 insecure registries list (**Settings → Docker Engine**) and restart Docker Desktop:
@@ -45,8 +45,8 @@ the registry:
 | Local Registry | http://k8s-node-1.local:5000 | Push images here for k3s to pull |
 | MinIO Console | http://k8s-node-1.local:9001 | user: `micewriter` / `micewriter123` |
 | MinIO S3 API | http://k8s-node-1.local:9000 | Use as `MINIO_URL` in the engine |
-| Nessie REST | http://k8s-node-1.local:19120/api/v1 | Nessie native API |
-| Iceberg REST | http://k8s-node-1.local:19120/iceberg/v1 | Use as `NESSIE_URI` in the engine |
+| Nessie API (v1) | http://k8s-node-1.local:19120/api/v1 | Nessie native API v1 |
+| Nessie API (v2) | http://k8s-node-1.local:19120/api/v2 | Use as `iceberg.nessie-catalog.uri` in Trino |
 
 The `iceberg` bucket is created automatically during the deployment process.
 
@@ -56,10 +56,11 @@ The `iceberg` bucket is created automatically during the deployment process.
 .\run.ps1 up      # Install cert-manager + registry + MinIO + Nessie (idempotent)
 .\run.ps1 down    # Uninstall MinIO and Nessie Helm releases
 .\run.ps1 status  # Show pod status in micewriter-infra namespace
+.\run.ps1 test    # Run Iceberg CRUD integration tests via Trino
 .\run.ps1 clean   # Uninstall everything and purge the namespace (deletes PVCs)
 ```
 
-`helm` and `kubectl` are invoked inside Docker containers — no native tooling required on
+`helm` is invoked inside a Docker container — no native tooling required on
 the host beyond Docker Desktop. The kubeconfig is read from
 `C:\Users\marko\source\repos\k3sonhyperv\kubeconfig` (update the path in `run.ps1` if different).
 

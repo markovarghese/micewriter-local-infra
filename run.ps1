@@ -39,12 +39,7 @@ $nessieVersion = "0.69.0"
 $trinoRepo     = "https://trinodb.github.io/charts"
 
 function Invoke-Kubectl {
-    docker run --rm -i `
-        -v "${kubeconfig}:/kubeconfig:ro" `
-        -e KUBECONFIG=/kubeconfig `
-        -v "${PSScriptRoot}:/workspace:ro" `
-        -w /workspace `
-        bitnami/kubectl:latest @args
+    kubectl --kubeconfig $kubeconfig @args
 }
 
 function Invoke-Helm {
@@ -92,8 +87,8 @@ switch ($Target) {
         Write-Host "  Registry      : http://k8s-node-1.local:5000"
         Write-Host "  MinIO console : http://k8s-node-1.local:9001  (user: micewriter / micewriter123)"
         Write-Host "  MinIO S3 API  : http://k8s-node-1.local:9000"
-        Write-Host "  Nessie REST   : http://k8s-node-1.local:19120/api/v1"
-        Write-Host "  Iceberg REST  : http://k8s-node-1.local:19120/iceberg/v1"
+        Write-Host "  Nessie API v1 : http://k8s-node-1.local:19120/api/v1"
+        Write-Host "  Nessie API v2 : http://k8s-node-1.local:19120/api/v2"
     }
 
     "down" {
@@ -115,7 +110,7 @@ switch ($Target) {
         Write-Host "Forwarding MinIO Console to http://localhost:9001 (Press Ctrl+C to stop)" -ForegroundColor Green
         try {
             while ($true) {
-                docker run --rm -p 9001:9001 -v "${kubeconfig}:/kubeconfig:ro" -e KUBECONFIG=/kubeconfig bitnami/kubectl port-forward svc/micewriter-minio 9001:9001 --address 0.0.0.0 -n micewriter-infra
+                kubectl --kubeconfig $kubeconfig port-forward svc/micewriter-minio 9001:9001 --address 0.0.0.0 -n micewriter-infra
                 Start-Sleep -Milliseconds 500
             }
         } catch {

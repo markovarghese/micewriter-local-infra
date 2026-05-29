@@ -7,7 +7,7 @@ HOME_DIR       := $(if $(USERPROFILE),$(USERPROFILE),$(HOME))
 KUBE_CONFIG    ?= $(HOME_DIR)/.kube/config
 
 # Dockerized commands
-KUBECTL        := docker run --rm -i -v "$(KUBE_CONFIG):/.kube/config" -e KUBECONFIG=/.kube/config bitnami/kubectl:latest
+KUBECTL        := kubectl --kubeconfig $(KUBE_CONFIG)
 HELM           := docker run --rm -i -v "$(KUBE_CONFIG):/.kube/config" -v "$(CURDIR):/workspace" -w /workspace -e KUBECONFIG=/.kube/config alpine/helm:latest
 
 MINIO_CHART    := oci://registry-1.docker.io/bitnamicharts/minio
@@ -54,8 +54,8 @@ up: repo
 	@echo "✓ Local data lake is up via ServiceLB (LoadBalancer)."
 	@echo "  MinIO console : http://k8s-node-1.local:9001     (user: micewriter / micewriter123)"
 	@echo "  MinIO S3 API  : http://k8s-node-1.local:9000"
-	@echo "  Nessie REST   : http://k8s-node-1.local:19120/api/v1"
-	@echo "  Iceberg REST  : http://k8s-node-1.local:19120/iceberg/v1"
+	@echo "  Nessie API v1 : http://k8s-node-1.local:19120/api/v1"
+	@echo "  Nessie API v2 : http://k8s-node-1.local:19120/api/v2"
 	@echo ""
 
 ## Tear down both releases (namespace and PVCs are kept to avoid accidental data loss)
@@ -71,7 +71,7 @@ status:
 console:
 	@echo "Forwarding MinIO Console to http://localhost:9001 (Press Ctrl+C to stop)"
 	@while true; do \
-		docker run --rm -i -p 9001:9001 -v "$(KUBE_CONFIG):/.kube/config" -e KUBECONFIG=/.kube/config bitnami/kubectl:latest port-forward svc/$(MINIO_RELEASE) 9001:9001 --address 0.0.0.0 -n $(NAMESPACE); \
+		$(KUBECTL) port-forward svc/$(MINIO_RELEASE) 9001:9001 --address 0.0.0.0 -n $(NAMESPACE); \
 		sleep 0.5; \
 	done
 
