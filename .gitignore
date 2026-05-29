@@ -1,1 +1,23 @@
-.claude/settings.local.json
+# Claude Code local settings
+.claude/
+
+# Local environment overrides (may contain secrets)
+.env
+.env.*
+
+# TLS certs (generated locally; never commit private keys)
+*.pem
+*.key
+*.crt
+*.csr
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
