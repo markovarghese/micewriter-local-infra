@@ -1,8 +1,10 @@
 additionalCatalogs:
   iceberg: |
     connector.name=iceberg
-    iceberg.catalog.type=rest
-    iceberg.rest-catalog.uri=http://micewriter-nessie.micewriter-infra.svc.cluster.local:19120/iceberg
+    iceberg.catalog.type=nessie
+    iceberg.nessie-catalog.uri=http://micewriter-nessie.micewriter-infra.svc.cluster.local:19120/api/v2
+    iceberg.nessie-catalog.ref=main
+    iceberg.nessie-catalog.default-warehouse-dir=s3://iceberg/
     fs.native-s3.enabled=true
     s3.endpoint=http://micewriter-minio.micewriter-infra.svc.cluster.local:9000
     s3.region=us-east-1
