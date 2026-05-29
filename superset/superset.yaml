@@ -1,0 +1,244 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: micewriter-infra
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: micewriter-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        env:
+        - name: POSTGRES_USER
+          value: superset
+        - name: POSTGRES_PASSWORD
+          value: superset
+        - name: POSTGRES_DB
+          value: superset
+        ports:
+        - containerPort: 5432
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: 100m
+          limits:
+            memory: 512Mi
+            cpu: 500m
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+          subPath: pgdata
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: micewriter-infra
+spec:
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: micewriter-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        resources:
+          requests:
+            memory: 64Mi
+            cpu: 50m
+          limits:
+            memory: 128Mi
+            cpu: 200m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: micewriter-infra
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: superset-config
+  namespace: micewriter-infra
+data:
+  superset_config.py: |
+    SQLALCHEMY_DATABASE_URI = 'postgresql+psycopg2://superset:superset@postgres:5432/superset'
+    SECRET_KEY = 'local-dev-secret-key-not-for-production'
+    REDIS_HOST = 'redis'
+    REDIS_PORT = 6379
+    CACHE_CONFIG = {
+        'CACHE_TYPE': 'RedisCache',
+        'CACHE_DEFAULT_TIMEOUT': 300,
+        'CACHE_KEY_PREFIX': 'superset_',
+        'CACHE_REDIS_HOST': 'redis',
+        'CACHE_REDIS_PORT': 6379,
+    }
+    class CeleryConfig:
+        broker_url = 'redis://redis:6379/0'
+        result_backend = 'redis://redis:6379/0'
+    CELERY_CONFIG = CeleryConfig
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: superset-web
+  namespace: micewriter-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superset-web
+  template:
+    metadata:
+      labels:
+        app: superset-web
+    spec:
+      enableServiceLinks: false
+      initContainers:
+      - name: wait-for-postgres
+        image: busybox
+        command: ['sh', '-c', 'until nc -z postgres 5432; do sleep 2; done']
+      - name: superset-init
+        image: k8s-node-1.local:5000/superset:latest
+        imagePullPolicy: Always
+        command: ['/bin/sh', '-c']
+        args:
+        - |
+          superset db upgrade &&
+          superset fab create-admin \
+            --username admin \
+            --firstname Admin \
+            --lastname Admin \
+            --email admin@superset.com \
+            --password admin || true &&
+          superset init
+        volumeMounts:
+        - name: superset-config
+          mountPath: /app/pythonpath/superset_config.py
+          subPath: superset_config.py
+      containers:
+      - name: superset
+        image: k8s-node-1.local:5000/superset:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8088
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 200m
+          limits:
+            memory: 1Gi
+            cpu: 500m
+        volumeMounts:
+        - name: superset-config
+          mountPath: /app/pythonpath/superset_config.py
+          subPath: superset_config.py
+      volumes:
+      - name: superset-config
+        configMap:
+          name: superset-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: superset
+  namespace: micewriter-infra
+spec:
+  type: LoadBalancer
+  selector:
+    app: superset-web
+  ports:
+  - port: 8088
+    targetPort: 8088
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: superset-worker
+  namespace: micewriter-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superset-worker
+  template:
+    metadata:
+      labels:
+        app: superset-worker
+    spec:
+      enableServiceLinks: false
+      initContainers:
+      - name: wait-for-postgres
+        image: busybox
+        command: ['sh', '-c', 'until nc -z postgres 5432; do sleep 2; done']
+      containers:
+      - name: superset
+        image: k8s-node-1.local:5000/superset:latest
+        imagePullPolicy: Always
+        command: ['/bin/sh', '-c', 'celery --app=superset.tasks.celery_app:app worker --loglevel=info']
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: 100m
+          limits:
+            memory: 512Mi
+            cpu: 500m
+        volumeMounts:
+        - name: superset-config
+          mountPath: /app/pythonpath/superset_config.py
+          subPath: superset_config.py
+      volumes:
+      - name: superset-config
+        configMap:
+          name: superset-config

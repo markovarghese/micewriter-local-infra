@@ -22,8 +22,8 @@ Neither `kubectl` nor `helm` need to be installed locally — the scripts run th
 .\run.ps1 status      # Show pod status in micewriter-infra namespace
 .\run.ps1 clean       # Full teardown — uninstalls everything, purges namespace and PVCs
 .\run.ps1 console     # Port-forward MinIO Console to localhost:9001
-.\run.ps1 query-up    # Deploy Trino + Querybook (run after up)
-.\run.ps1 query-down  # Tear down Trino + Querybook
+.\run.ps1 query-up    # Deploy Trino + Superset (run after up)
+.\run.ps1 query-down  # Tear down Trino + Superset
 ```
 
 If blocked by execution policy:
@@ -67,14 +67,14 @@ Services use k3s's built-in Klipper LoadBalancer to bind directly to node IPs. T
 | Nessie Iceberg REST | `http://k8s-node-1.local:19120/iceberg/v1` |
 | Local Registry | `http://k8s-node-1.local:5000` |
 | Trino | `http://k8s-node-1.local:8080` (deployed by `query-up`) |
-| Querybook | `http://k8s-node-1.local:10001` (deployed by `query-up`) |
+| Superset | `http://k8s-node-1.local:8088` (deployed by `query-up`, admin / admin) |
 
 ### Key Design Decisions
 
 - **Nessie is in-memory** (`versionStoreType: IN_MEMORY` in `nessie/values.yaml`) — all catalog state is lost on pod restart. This is intentional for local dev.
 - **Registry uses `emptyDir`** — images are ephemeral. Images must be pushed again after pod restarts.
 - **MinIO PVC is persistent** — 10Gi via `local-path` provisioner; Parquet files survive restarts.
-- **Querybook MySQL uses a PVC** (2Gi) — notebooks and query history persist across pod restarts. Redis uses `emptyDir` (ephemeral).
+- **Superset PostgreSQL uses a PVC** (2Gi) — dashboards and query history persist across pod restarts. Redis uses `emptyDir` (ephemeral).
 
 ## Prerequisites
 

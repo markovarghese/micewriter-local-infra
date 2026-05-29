@@ -6,8 +6,8 @@
   .\run.ps1 down        # Uninstall MinIO + Nessie (keeps namespace/PVCs)
   .\run.ps1 clean       # Full teardown including namespace and PVCs
   .\run.ps1 status      # Show pod status
-  .\run.ps1 query-up    # Deploy Trino + Querybook (run after up)
-  .\run.ps1 query-down  # Tear down Trino + Querybook
+  .\run.ps1 query-up    # Deploy Trino + Superset (run after up)
+  .\run.ps1 query-down  # Tear down Trino + Superset
   .\run.ps1 test        # Run Iceberg CRUD integration tests via Trino
 #>
 param([Parameter(Mandatory)][string]$Target)
@@ -110,6 +110,10 @@ switch ($Target) {
 
 
     "query-up" {
+        Write-Host "Building Superset image with Trino driver..."
+        docker build -t k8s-node-1.local:5000/superset:latest "$PSScriptRoot/superset"
+        docker push k8s-node-1.local:5000/superset:latest
+
         Write-Host "Deploying Trino..."
         Invoke-Helm upgrade --install $trinoRelease trino `
             --repo $trinoRepo `
@@ -117,21 +121,21 @@ switch ($Target) {
             --values trino/values.yaml `
             --wait
 
-        Write-Host "Deploying Querybook (MySQL, Redis, web, worker)..."
-        Invoke-Kubectl apply -f querybook/querybook.yaml
+        Write-Host "Deploying Superset (PostgreSQL, Redis, web, worker)..."
+        Invoke-Kubectl apply -f superset/superset.yaml
 
         Write-Host ""
         Write-Host "Query stack is up."
-        Write-Host "  Trino         : http://k8s-node-1.local:8080"
-        Write-Host "  Querybook     : http://k8s-node-1.local:10001"
+        Write-Host "  Trino    : http://k8s-node-1.local:8080"
+        Write-Host "  Superset : http://k8s-node-1.local:8088  (admin / admin)"
         Write-Host ""
-        Write-Host "Register Trino in Querybook admin UI (/admin/query_engine/):"
-        Write-Host "  Language: trino  |  Host: trino.$namespace.svc.cluster.local  |  Port: 8080  |  Catalog: iceberg"
+        Write-Host "Add Trino in Superset (Settings > Database Connections > + Database > Trino):"
+        Write-Host "  SQLAlchemy URI: trino://admin@trino.$namespace.svc.cluster.local:8080/iceberg"
     }
 
     "query-down" {
         Invoke-Helm uninstall $trinoRelease --namespace $namespace --ignore-not-found
-        Invoke-Kubectl delete -f querybook/querybook.yaml --ignore-not-found
+        Invoke-Kubectl delete -f superset/superset.yaml --ignore-not-found
     }
 
     "test" {
