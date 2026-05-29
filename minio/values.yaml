@@ -16,9 +16,9 @@ args:
   - "/bitnami/minio/data"
   - "--console-address"
   - ":9001"
-
 console:
-  enabled: false
+  enabled: true
+  replicaCount: 0
 
 clientImage:
   registry: docker.io
@@ -28,6 +28,9 @@ clientImage:
 auth:
   rootUser: micewriter
   rootPassword: micewriter123
+
+networkPolicy:
+  enabled: false
 
 persistence:
   enabled: true

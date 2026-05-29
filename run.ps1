@@ -6,7 +6,6 @@
   .\run.ps1 down        # Uninstall MinIO + Nessie (keeps namespace/PVCs)
   .\run.ps1 clean       # Full teardown including namespace and PVCs
   .\run.ps1 status      # Show pod status
-  .\run.ps1 console     # Port-forward MinIO console to localhost:9001
   .\run.ps1 query-up    # Deploy Trino + Querybook (run after up)
   .\run.ps1 query-down  # Tear down Trino + Querybook
   .\run.ps1 test        # Run Iceberg CRUD integration tests via Trino
@@ -71,6 +70,9 @@ switch ($Target) {
             --values minio/values.yaml `
             --wait
 
+        Write-Host "Enabling MinIO native WebUI..."
+        Invoke-Kubectl set env deployment/micewriter-minio MINIO_BROWSER=on -n micewriter-infra
+
         Write-Host "Provisioning MinIO iceberg bucket..."
         Invoke-Kubectl exec -n $namespace deployment/micewriter-minio "--" sh -c "mc alias set local http://localhost:9000 micewriter micewriter123 && mc mb local/iceberg --ignore-existing"
 
@@ -106,17 +108,6 @@ switch ($Target) {
         Invoke-Kubectl get pods -n $namespace -o wide
     }
 
-    "console" {
-        Write-Host "Forwarding MinIO Console to http://localhost:9001 (Press Ctrl+C to stop)" -ForegroundColor Green
-        try {
-            while ($true) {
-                kubectl --kubeconfig $kubeconfig port-forward svc/micewriter-minio 9001:9001 --address 0.0.0.0 -n micewriter-infra
-                Start-Sleep -Milliseconds 500
-            }
-        } catch {
-            Write-Host "Stopped MinIO console."
-        }
-    }
 
     "query-up" {
         Write-Host "Deploying Trino..."
@@ -147,5 +138,5 @@ switch ($Target) {
         & "$PSScriptRoot\test.ps1"
     }
 
-    default { Write-Error "Unknown target '$Target'. Use: up | down | clean | status | console | query-up | query-down | test" }
+    default { Write-Error "Unknown target '$Target'. Use: up | down | clean | status | query-up | query-down | test" }
 }
