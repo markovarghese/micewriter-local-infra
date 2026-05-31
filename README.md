@@ -9,7 +9,7 @@ Local data lake simulator: deploys **MinIO** (S3-compatible object store) and **
 |------|---------|
 | Docker Desktop | Runs `helm` via containers — no native install needed |
 
-Before running `.\run.ps1 up` for the first time, add the local registry to Docker Desktop's
+Before running `powershell -ExecutionPolicy Bypass -File .\run.ps1 up` for the first time, add the local registry to Docker Desktop's
 insecure registries list (**Settings → Docker Engine**) and restart Docker Desktop:
 
 ```json
@@ -23,19 +23,17 @@ the registry:
 
 ```powershell
 # From D:\githubrepos\k3sonhyperv
-.\run-ansible.ps1 -Playbook install-local-registry.yml
+powershell -ExecutionPolicy Bypass -File .\run-ansible.ps1 -Playbook install-local-registry.yml
 ```
 
 ## Quick Start
 
-> **Note**: If PowerShell blocks the script with an execution policy error, prefix your commands with `powershell -ExecutionPolicy Bypass -File` (e.g. `powershell -ExecutionPolicy Bypass -File .\run.ps1 up`).
-
 ```powershell
 # Deploy cert-manager, the in-cluster registry, MinIO, and Nessie
-.\run.ps1 up
+powershell -ExecutionPolicy Bypass -File .\run.ps1 up
 
 # Verify all pods are running
-.\run.ps1 status
+powershell -ExecutionPolicy Bypass -File .\run.ps1 status
 ```
 
 ## Endpoints
@@ -53,11 +51,11 @@ The `iceberg` bucket is created automatically during the deployment process.
 ## Commands
 
 ```powershell
-.\run.ps1 up      # Install cert-manager + registry + MinIO + Nessie (idempotent)
-.\run.ps1 down    # Uninstall MinIO and Nessie Helm releases
-.\run.ps1 status  # Show pod status in micewriter-infra namespace
-.\run.ps1 test    # Run Iceberg CRUD integration tests via Trino
-.\run.ps1 clean   # Uninstall everything and purge the namespace (deletes PVCs)
+powershell -ExecutionPolicy Bypass -File .\run.ps1 up      # Install cert-manager + registry + MinIO + Nessie (idempotent)
+powershell -ExecutionPolicy Bypass -File .\run.ps1 down    # Uninstall MinIO and Nessie Helm releases
+powershell -ExecutionPolicy Bypass -File .\run.ps1 status  # Show pod status in micewriter-infra namespace
+powershell -ExecutionPolicy Bypass -File .\run.ps1 test    # Run Iceberg CRUD integration tests via Trino
+powershell -ExecutionPolicy Bypass -File .\run.ps1 clean   # Uninstall everything and purge the namespace (deletes PVCs)
 ```
 
 `helm` is invoked inside a Docker container — no native tooling required on
