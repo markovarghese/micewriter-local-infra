@@ -52,6 +52,10 @@ function Invoke-Helm {
 
 switch ($Target) {
     "up" {
+        $minioValues = Get-Content "$PSScriptRoot\minio\values.yaml"
+        $rootUser = ($minioValues -match '^\s*rootUser:\s*(.*)')[0] -replace '^\s*rootUser:\s*(.*)', '$1'
+        $rootPassword = ($minioValues -match '^\s*rootPassword:\s*(.*)')[0] -replace '^\s*rootPassword:\s*(.*)', '$1'
+
         Write-Host "Installing cert-manager $certVersion..."
         Invoke-Kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/$certVersion/cert-manager.yaml"
         Invoke-Kubectl wait --for=condition=Available deployment --all -n cert-manager --timeout=120s
@@ -79,7 +83,16 @@ switch ($Target) {
         Invoke-Kubectl set env deployment/micewriter-minio MINIO_BROWSER=on -n micewriter-infra
 
         Write-Host "Provisioning MinIO iceberg bucket..."
-        Invoke-Kubectl exec -n $namespace deployment/micewriter-minio "--" sh -c "mc alias set local http://localhost:9000 micewriter micewriter123 && mc mb local/iceberg --ignore-existing"
+        Invoke-Kubectl exec -n $namespace deployment/micewriter-minio "--" sh -c "mc alias set local http://localhost:9000 $rootUser $rootPassword && mc mb local/iceberg --ignore-existing"
+
+        Write-Host "Creating nessie-s3-creds Secret..."
+        Invoke-Kubectl create secret generic nessie-s3-creds `
+            --from-literal=aws_access_key_id=$rootUser `
+            --from-literal=aws_secret_access_key=$rootPassword `
+            -n $namespace `
+            --dry-run=client -o yaml > temp-secret.yaml
+        Invoke-Kubectl apply -f temp-secret.yaml
+        Remove-Item temp-secret.yaml -ErrorAction SilentlyContinue
 
         Write-Host "Deploying Nessie..."
         Invoke-Helm upgrade --install $nessieRelease $nessieChart `
@@ -92,7 +105,7 @@ switch ($Target) {
         Write-Host ""
         Write-Host "Local data lake is up."
         Write-Host "  Registry      : http://k8s-node-1.local:5000"
-        Write-Host "  MinIO console : http://k8s-node-1.local:9001  (user: micewriter / micewriter123)"
+        Write-Host "  MinIO console : http://k8s-node-1.local:9001  (user: $rootUser / $rootPassword)"
         Write-Host "  MinIO S3 API  : http://k8s-node-1.local:9000"
         Write-Host "  Nessie API v1 : http://k8s-node-1.local:19120/api/v1"
         Write-Host "  Nessie API v2 : http://k8s-node-1.local:19120/api/v2"
