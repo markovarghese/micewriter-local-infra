@@ -34,7 +34,7 @@ $minioChart    = "oci://registry-1.docker.io/bitnamicharts/minio"
 $minioVersion  = "17.0.21"
 $nessieChart   = "nessie"
 $nessieRepo    = "https://charts.projectnessie.org"
-$nessieVersion = "0.69.0"
+$nessieVersion = "0.107.6"
 $trinoRepo     = "https://trinodb.github.io/charts"
 
 function Invoke-Kubectl {
@@ -71,6 +71,11 @@ switch ($Target) {
             --wait
 
         Write-Host "Enabling MinIO native WebUI..."
+        # The Bitnami chart hardcodes MINIO_BROWSER=off; this post-install env-set is the
+        # only way to enable the legacy in-server UI. Side effect: kubectl-set claims field
+        # ownership, which causes Server-Side Apply conflicts on later helm upgrades. If you
+        # need to re-run `helm upgrade` directly (without going through run.ps1), first
+        # `kubectl delete deployment micewriter-minio -n micewriter-infra` to release ownership.
         Invoke-Kubectl set env deployment/micewriter-minio MINIO_BROWSER=on -n micewriter-infra
 
         Write-Host "Provisioning MinIO iceberg bucket..."

@@ -57,10 +57,24 @@ provisioning:
   buckets:
     - name: iceberg
 
+# Pin to k8s-node-2 (desktop worker) so MinIO and Nessie sit together,
+# isolated from the sandbox+engine on k8s-node-3.
+nodeSelector:
+  kubernetes.io/hostname: k8s-node-2
+
+# Expose MinIO's built-in Prometheus endpoint so Grafana Alloy scrapes it.
+# `/minio/v2/metrics/cluster` is the public no-auth endpoint in modern MinIO.
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9000"
+  prometheus.io/path: "/minio/v2/metrics/cluster"
+
+# Raised so MinIO is never the bottleneck during burst Parquet uploads from
+# the engine sidecar. CPU bump (500m -> 2 cores) is the load-bearing change.
 resources:
   requests:
-    memory: 256Mi
-    cpu: 100m
-  limits:
-    memory: 512Mi
+    memory: 1Gi
     cpu: 500m
+  limits:
+    memory: 2Gi
+    cpu: "2"

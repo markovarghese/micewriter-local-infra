@@ -1,13 +1,22 @@
-# Apache Nessie — dev values for k3s (in-memory backend + LoadBalancer)
+# Apache Nessie chart 0.107.6 — dev values for k3s (in-memory backend + Iceberg REST catalog)
+#
+# Iceberg REST catalog endpoint at /iceberg/v1/* is what the engine sidecar
+# (iceberg-rust client) speaks. It was added in Nessie ~0.74 and made
+# easy to configure here via catalog.* — the prior 0.69 chart did not support it.
 
-# Use in-memory version store — data is lost on pod restart (fine for local dev)
 versionStoreType: IN_MEMORY
 
 replicaCount: 1
 
-env:
-  - name: NESSIE_CATALOG_DEFAULT_WAREHOUSE
-    value: s3://iceberg
+# Co-locate with MinIO on k8s-node-2.
+nodeSelector:
+  kubernetes.io/hostname: k8s-node-2
+
+# Expose Nessie's Quarkus metrics endpoint for Grafana Alloy.
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "19120"
+  prometheus.io/path: "/q/metrics"
 
 service:
   type: LoadBalancer
@@ -16,10 +25,31 @@ service:
 ingress:
   enabled: false
 
+# Iceberg REST catalog — this is what the engine talks to.
+catalog:
+  enabled: true
+  iceberg:
+    defaultWarehouse: warehouse1
+    warehouses:
+      - name: warehouse1
+        location: s3://iceberg/
+  storage:
+    s3:
+      defaultOptions:
+        region: us-east-1
+        endpoint: http://micewriter-minio.micewriter-infra.svc.cluster.local:9000
+        externalEndpoint: http://micewriter-minio.micewriter-infra.svc.cluster.local:9000
+        pathStyleAccess: true
+        authType: STATIC
+        accessKeySecret:
+          name: nessie-s3-creds
+          awsAccessKeyId: aws_access_key_id
+          awsSecretAccessKey: aws_secret_access_key
+
 resources:
   requests:
-    memory: 256Mi
-    cpu: 100m
-  limits:
     memory: 512Mi
-    cpu: 500m
+    cpu: 200m
+  limits:
+    memory: 1Gi
+    cpu: "1"
