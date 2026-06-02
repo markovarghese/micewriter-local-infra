@@ -1,0 +1,15 @@
+apiVersion: v2
+name: table-pipeline
+description: One v2 mIceWriter engine pipeline (Deployment + Service + HPA) for a single Iceberg table
+type: application
+version: 0.1.0
+appVersion: "0.2.0"
+keywords:
+  - micewriter
+  - iceberg
+  - telemetry
+sources:
+  - https://github.com/markovarghese/micewriter-engine
+  - https://github.com/markovarghese/micewriter-hub
+maintainers:
+  - name: Marko Varghese

@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "table-pipeline.fullname" . }}
+  labels:
+    {{- include "table-pipeline.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicas.min }}
+  selector:
+    matchLabels:
+      {{- include "table-pipeline.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "table-pipeline.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- if .Values.prometheusAnnotations.enabled }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.service.metricsPort }}"
+        prometheus.io/path: "/metrics"
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: engine
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.service.grpcPort }}
+            - name: metrics
+              containerPort: {{ .Values.service.metricsPort }}
+          env:
+            - name: MICEWRITER_TABLE
+              value: {{ .Values.table | quote }}
+            - name: GRPC_PORT
+              value: {{ .Values.service.grpcPort | quote }}
+            - name: METRICS_PORT
+              value: {{ .Values.service.metricsPort | quote }}
+            - name: CATALOG_TYPE
+              value: {{ .Values.catalog.type | quote }}
+            - name: WAREHOUSE
+              value: {{ .Values.catalog.warehouse | quote }}
+            {{- if eq .Values.catalog.type "nessie" }}
+            - name: NESSIE_URI
+              value: {{ .Values.catalog.nessieUri | quote }}
+            - name: MINIO_URL
+              value: {{ .Values.objectStore.minioUrl | quote }}
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.objectStore.credentialsSecret }}
+                  key: {{ .Values.objectStore.accessKeyId }}
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.objectStore.credentialsSecret }}
+                  key: {{ .Values.objectStore.secretAccessKey }}
+            {{- end }}
+            {{- if and (eq .Values.catalog.type "glue") .Values.catalog.glueCatalogId }}
+            - name: GLUE_CATALOG_ID
+              value: {{ .Values.catalog.glueCatalogId | quote }}
+            {{- end }}
+            - name: FLUSH_INTERVAL_SECS
+              value: {{ .Values.flush.intervalSeconds | quote }}
+            - name: FLUSH_JITTER_SECS
+              value: {{ .Values.flush.jitterSeconds | quote }}
+            - name: FLUSH_SIZE_BYTES
+              value: {{ .Values.flush.sizeBytes | quote }}
+            - name: FLUSH_SIZE_JITTER_BYTES
+              value: {{ .Values.flush.sizeJitterBytes | quote }}
+            - name: MAX_RETAINED_FROZEN_CFS
+              value: {{ .Values.flush.maxRetainedFrozenCfs | quote }}
+            - name: ROCKSDB_PATH
+              value: {{ .Values.rocksdb.path | quote }}
+            - name: ENABLE_MANUAL_FLUSH
+              value: {{ .Values.enableManualFlush | quote }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: rocksdb
+              mountPath: {{ .Values.rocksdb.path }}
+      volumes:
+        - name: rocksdb
+          {{- if eq .Values.rocksdb.storage.type "pvc" }}
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                accessModes: ["ReadWriteOnce"]
+                {{- with .Values.rocksdb.storage.storageClassName }}
+                storageClassName: {{ . }}
+                {{- end }}
+                resources:
+                  requests:
+                    storage: {{ .Values.rocksdb.storage.sizeLimit }}
+          {{- else }}
+          emptyDir:
+            sizeLimit: {{ .Values.rocksdb.storage.sizeLimit }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

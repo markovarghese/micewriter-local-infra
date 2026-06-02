@@ -7,8 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **micewriter-local-infra** provisions a local data lake on a k3s cluster for the mIceWriter project. It deploys:
 - **MinIO** — S3-compatible object store (Parquet files, persisted via PVC)
 - **Apache Nessie** — Iceberg REST Catalog (in-memory, ephemeral by design)
-- **cert-manager** — required for Nessie webhook certificates
+- **cert-manager** — required for cluster components that need TLS certificates
 - **Local Docker Registry** — in-cluster image registry for k3s to pull from
+
+It also hosts [`charts/table-pipeline/`](charts/table-pipeline/) — the v2 engine pipeline Helm chart. One release per Iceberg table. Not installed by `up` (engine pipelines are deployed per-table, on demand). See the chart README for usage.
 
 Neither `kubectl` nor `helm` need to be installed locally — the scripts run them inside Docker containers.
 

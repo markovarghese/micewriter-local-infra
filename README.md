@@ -1,7 +1,7 @@
 # micewriter-local-infra
 > Part of the [mIceWriter Ingestion Ecosystem](../micewriter-hub/README.md)
 
-Local data lake simulator: deploys **MinIO** (S3-compatible object store) and **Apache Nessie** (Iceberg REST Catalog) onto a k3s cluster via Helm.
+Local data lake simulator and the home of the v2 engine pipeline Helm chart. Deploys **MinIO** (S3-compatible object store) and **Apache Nessie** (Iceberg REST Catalog) onto a k3s cluster; hosts [`charts/table-pipeline/`](charts/table-pipeline/README.md) which provisions one v2 `micewriter-engine` `Deployment` + `Service` + `HPA` per Iceberg table.
 
 ## Prerequisites
 
@@ -66,10 +66,29 @@ the host beyond Docker Desktop. The kubeconfig is read from
 
 | Component | Why |
 |-----------|-----|
-| **cert-manager** | Required by `micewriter-k8s-injector` for TLS webhook certificates |
+| **cert-manager** | TLS certificates for cluster components that need them |
 | **Local registry** (`registry:2`) | Image distribution: `docker push k8s-node-1.local:5000/<image>` |
 | **MinIO** | S3-compatible object store for Parquet files |
 | **Apache Nessie** | Iceberg REST Catalog for atomic table commits |
+
+`up` does **not** install any engine pipelines — those are per-Iceberg-table releases of `charts/table-pipeline/` and are installed separately. See the chart [README](charts/table-pipeline/README.md) for the install command.
+
+## Deploy a v2 engine pipeline
+
+For each Iceberg table the sandbox or adopter app writes to:
+
+```powershell
+docker run --rm -i `
+  -v "$HOME\.kube\config:/kubeconfig:ro" -e KUBECONFIG=/kubeconfig `
+  -v "${PWD}:/workspace:ro" -w /workspace `
+  alpine/helm:latest `
+  upgrade --install engine-telemetry-events ./charts/table-pipeline `
+    --namespace micewriter-infra `
+    --set table=telemetry_events `
+    --wait
+```
+
+Resulting Service: `engine-telemetry-events.micewriter-infra.svc:9090`. The SDK's default resolver template (`engine-{table}.micewriter.svc:9090`) reaches this with no per-table override.
 
 ## File Structure
 
@@ -83,6 +102,8 @@ micewriter-local-infra/
     values.yaml       # Bitnami MinIO chart overrides
   nessie/
     values.yaml       # Project Nessie chart overrides
+  charts/
+    table-pipeline/   # v2 engine pipeline Helm chart (one release per Iceberg table)
 ```
 
 ## Notes
