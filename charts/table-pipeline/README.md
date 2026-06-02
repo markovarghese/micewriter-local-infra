@@ -70,4 +70,4 @@ See [`values.yaml`](values.yaml) — every key is commented inline.
 
 ## How v1 differs (for the curious)
 
-In v1, the engine was a per-pod sidecar injected by the `micewriter-k8s-injector` admission webhook. There was no Helm chart for it — the injector embedded the engine container into every annotated application pod. v2 retires the injector entirely; this chart replaces that whole flow. See [v1-to-v2-migration.md](../../../micewriter-hub/docs/v1-to-v2-migration.md) for the rationale.
+In v1, the engine is a per-pod sidecar injected by the `micewriter-k8s-injector` admission webhook (still an active release line on the v1 branches). There is no Helm chart for that flow — the injector embeds the engine container into every annotated application pod. v2 replaces that flow with this chart; v1 continues independently. See [v1-to-v2-migration.md](../../../micewriter-hub/docs/v1-to-v2-migration.md) for the pivot rationale.
