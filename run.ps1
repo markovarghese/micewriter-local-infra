@@ -26,7 +26,7 @@ if (-not (Test-Path $kubeconfig)) {
 }
 
 $namespace     = "micewriter-infra"
-$certVersion   = "v1.15.1"
+$certVersion   = "v1.20.2"
 $minioRelease  = "micewriter-minio"
 $nessieRelease = "micewriter-nessie"
 $trinoRelease  = "trino"
@@ -136,6 +136,7 @@ switch ($Target) {
         Invoke-Helm upgrade --install $trinoRelease trino `
             --repo $trinoRepo `
             --namespace $namespace `
+            --version 1.42.2 `
             --values trino/values.yaml `
             --wait
 
