@@ -59,8 +59,7 @@ powershell -ExecutionPolicy Bypass -File .\run.ps1 clean   # Uninstall everythin
 ```
 
 `helm` is invoked inside a Docker container — no native tooling required on
-the host beyond Docker Desktop. The kubeconfig is read from
-`C:\Users\marko\source\repos\k3sonhyperv\kubeconfig` (update the path in `run.ps1` if different).
+the host beyond Docker Desktop. The kubeconfig is read from `~/.kube/config`.
 
 ## What `up` installs
 
