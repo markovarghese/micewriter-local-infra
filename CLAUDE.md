@@ -73,7 +73,7 @@ Services use k3s's built-in Klipper LoadBalancer to bind directly to node IPs. T
 
 - **Nessie is in-memory** (`versionStoreType: IN_MEMORY` in `nessie/values.yaml`) — all catalog state is lost on pod restart. This is intentional for local dev.
 - **Registry uses `emptyDir`** — images are ephemeral. Images must be pushed again after pod restarts.
-- **MinIO PVC is persistent** — 10Gi via `local-path` provisioner; Parquet files survive restarts.
+- **MinIO PVC is persistent** — 20Gi via `local-path` provisioner; Parquet files survive restarts.
 - **Superset PostgreSQL uses a PVC** (2Gi) — dashboards and query history persist across pod restarts. Redis uses `emptyDir` (ephemeral).
 
 ## Prerequisites
