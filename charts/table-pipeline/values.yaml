@@ -1,0 +1,100 @@
+# ---------------------------------------------------------------------------
+# table-pipeline values.yaml
+#
+# One Helm release == one Iceberg table's engine pipeline. Required: `table`.
+# Everything else has v2.0 defaults sized for the local k3s eval.
+# ---------------------------------------------------------------------------
+
+# Iceberg table this pipeline serves. REQUIRED. Used as MICEWRITER_TABLE on
+# the engine and as the basis of the K8s Service name (`engine-{table}`).
+table: ""
+
+# Image — defaults to the local-infra registry layout.
+image:
+  repository: k8s-node-1.local:5000/micewriter-engine
+  tag: latest
+  pullPolicy: Always
+
+# Replica count. `min` becomes the Deployment's replicas; `max` is the HPA cap.
+replicas:
+  min: 1
+  max: 3
+
+# Horizontal Pod Autoscaler. v2.0 uses CPU/memory (Q4). Set enabled=false to
+# pin to `replicas.min` without HPA.
+hpa:
+  enabled: true
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Resource budget. Sized for the local k3s eval at ~10 KB events × 100 ev/s.
+# Per-table tuning: raise memory for tables with large payloads (10 MB+).
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+# Flush cycle tuning (per-table). Defaults match the engine's compiled-in
+# defaults; override for hot tables that need shorter windows or smaller files.
+flush:
+  intervalSeconds: 600
+  jitterSeconds: 120
+  sizeBytes: 33554432   # 32 MB
+  sizeJitterBytes: 8388608   # 8 MB
+  # Reject ingest after N retained frozen CFs. Set 0 to disable backpressure.
+  maxRetainedFrozenCfs: 3
+
+# Iceberg catalog. `nessie` for local k3s + Nessie; `glue` for production EKS.
+catalog:
+  type: nessie
+  # Used when catalog.type == nessie.
+  nessieUri: http://micewriter-nessie.micewriter-infra.svc:19120/iceberg/v1
+  # Used by both nessie and glue.
+  warehouse: s3://iceberg
+  # Used when catalog.type == glue. Optional.
+  glueCatalogId: ""
+
+# Object store credentials. The default `credentialsSecret` matches the Secret
+# created by run.ps1 (`nessie-s3-creds`).
+objectStore:
+  minioUrl: http://micewriter-minio.micewriter-infra.svc:9000
+  credentialsSecret: nessie-s3-creds
+  accessKeyId: aws_access_key_id
+  secretAccessKey: aws_secret_access_key
+
+# Local persistence for the RocksDB buffer. emptyDir is fine for v2.0 — engine
+# pod restart loses in-flight records by design (best-effort durability per
+# why.md non-goal 4). For higher durability, set type=pvc and size accordingly.
+rocksdb:
+  path: /var/lib/rocksdb
+  storage:
+    type: emptyDir       # emptyDir | pvc
+    sizeLimit: 5Gi
+    storageClassName: "" # only used when type=pvc
+
+# Whether to allow the FlushNow IPC for end-to-end tests. Disable in prod.
+enableManualFlush: true
+
+# Ports.
+service:
+  type: ClusterIP
+  grpcPort: 9090
+  metricsPort: 9100
+
+# Prometheus scrape annotations (cAdvisor metrics still come for free; this
+# only enables scraping the engine's own /metrics endpoint via Alloy).
+prometheusAnnotations:
+  enabled: true
+
+# Pod-level overrides.
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# v2.0 ships plain gRPC by default. mTLS via service-mesh overlay (Istio /
+# Linkerd PeerAuthentication) is the Q3-recommended path for zero-trust.

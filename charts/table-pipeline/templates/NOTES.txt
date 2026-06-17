@@ -1,0 +1,16 @@
+mIceWriter v2 pipeline for Iceberg table "{{ .Values.table }}" is installed.
+
+Service:   {{ include "table-pipeline.fullname" . }}.{{ .Release.Namespace }}.svc
+gRPC:      {{ .Values.service.grpcPort }}
+Metrics:   {{ .Values.service.metricsPort }} (Prometheus exposition at /metrics)
+
+Point the SDK at:
+  micewriter.resolver = "engine-{table}.{{ .Release.Namespace }}.svc:{{ .Values.service.grpcPort }}"
+
+Verify the pod is up and the gRPC server is listening:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "table-pipeline.fullname" . }} --tail=20
+
+Force a manual flush (only when enableManualFlush=true):
+  grpcurl -plaintext {{ include "table-pipeline.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.grpcPort }} micewriter.Engine/FlushNow
+
+To deploy more tables, repeat with a different release name and `--set table=<other_table>`.
