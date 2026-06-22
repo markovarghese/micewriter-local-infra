@@ -42,8 +42,8 @@ resources:
 flush:
   intervalSeconds: 600
   jitterSeconds: 120
-  sizeBytes: 33554432   # 32 MB
-  sizeJitterBytes: 8388608   # 8 MB
+  sizeBytes: "33554432"   # 32 MB — quoted to prevent YAML float/scientific-notation rendering
+  sizeJitterBytes: "8388608"   # 8 MB
   # Reject ingest after N retained frozen CFs. Set 0 to disable backpressure.
   maxRetainedFrozenCfs: 3
 
