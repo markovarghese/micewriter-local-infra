@@ -5,11 +5,14 @@ Local data lake simulator and the home of the v2 engine pipeline Helm chart. Dep
 
 ## Prerequisites
 
-| Tool | Purpose |
-|------|---------|
-| Docker Desktop | Runs `helm` via containers — no native install needed |
+| Tool | Windows | WSL2 |
+|------|---------|------|
+| Docker Desktop | Required — runs `helm` via containers | Required — runs `helm` via containers |
+| PowerShell | Built-in | `pwsh` (install via `sudo snap install powershell`) |
+| `kubectl` | Not required | `sudo apt install kubectl` |
+| `helm` | Not required | `curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 \| bash` |
 
-Before running `powershell -ExecutionPolicy Bypass -File .\run.ps1 up` for the first time, add the local registry to Docker Desktop's
+Before running `up` for the first time, add the local registry to Docker Desktop's
 insecure registries list (**Settings → Docker Engine**) and restart Docker Desktop:
 
 ```json
@@ -21,19 +24,36 @@ insecure registries list (**Settings → Docker Engine**) and restart Docker Des
 Also run the one-time Ansible playbook in `k3sonhyperv` to configure k3s nodes to trust
 the registry:
 
+**PowerShell (Windows)**
 ```powershell
 # From D:\githubrepos\k3sonhyperv
 powershell -ExecutionPolicy Bypass -File .\run-ansible.ps1 -Playbook install-local-registry.yml
 ```
 
+**WSL2**
+```bash
+# From /mnt/d/githubrepos/k3sonhyperv (adjust path to match your Windows drive)
+pwsh -ExecutionPolicy Bypass ./run-ansible.ps1 -Playbook install-local-registry.yml
+```
+
 ## Quick Start
 
+**PowerShell (Windows)**
 ```powershell
 # Deploy cert-manager, the in-cluster registry, MinIO, and Nessie
 powershell -ExecutionPolicy Bypass -File .\run.ps1 up
 
 # Verify all pods are running
 powershell -ExecutionPolicy Bypass -File .\run.ps1 status
+```
+
+**WSL2**
+```bash
+# Deploy cert-manager, the in-cluster registry, MinIO, and Nessie
+make up
+
+# Verify all pods are running
+make status
 ```
 
 ## Endpoints
@@ -50,16 +70,30 @@ The `iceberg` bucket is created automatically during the deployment process.
 
 ## Commands
 
+**PowerShell (Windows)**
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\run.ps1 up      # Install cert-manager + registry + MinIO + Nessie (idempotent)
-powershell -ExecutionPolicy Bypass -File .\run.ps1 down    # Uninstall MinIO and Nessie Helm releases
-powershell -ExecutionPolicy Bypass -File .\run.ps1 status  # Show pod status in micewriter-infra namespace
-powershell -ExecutionPolicy Bypass -File .\run.ps1 test    # Run Iceberg CRUD integration tests via Trino
-powershell -ExecutionPolicy Bypass -File .\run.ps1 clean   # Uninstall everything and purge the namespace (deletes PVCs)
+powershell -ExecutionPolicy Bypass -File .\run.ps1 up         # Install cert-manager + registry + MinIO + Nessie (idempotent)
+powershell -ExecutionPolicy Bypass -File .\run.ps1 down       # Uninstall MinIO and Nessie Helm releases
+powershell -ExecutionPolicy Bypass -File .\run.ps1 status     # Show pod status in micewriter-infra namespace
+powershell -ExecutionPolicy Bypass -File .\run.ps1 clean      # Uninstall everything and purge the namespace (deletes PVCs)
+powershell -ExecutionPolicy Bypass -File .\run.ps1 query-up   # Deploy Trino + Superset (run after up)
+powershell -ExecutionPolicy Bypass -File .\run.ps1 query-down # Tear down Trino + Superset
+powershell -ExecutionPolicy Bypass -File .\run.ps1 test       # Run Iceberg CRUD integration tests via Trino
 ```
 
-`helm` is invoked inside a Docker container — no native tooling required on
-the host beyond Docker Desktop. The kubeconfig is read from `~/.kube/config`.
+**WSL2**
+```bash
+make up          # Install cert-manager + registry + MinIO + Nessie (idempotent)
+make down        # Uninstall MinIO and Nessie Helm releases
+make status      # Show pod status in micewriter-infra namespace
+make clean       # Uninstall everything and purge the namespace (deletes PVCs)
+make query-up    # Deploy Trino + Superset (run after up)
+make query-down  # Tear down Trino + Superset
+make test        # Run Iceberg CRUD integration tests via Trino
+```
+
+On Windows, `helm` is invoked inside a Docker container — no native Helm install needed.
+On WSL2, `make` calls `helm` and `kubectl` natively — both must be installed (see Prerequisites).
 
 ## What `up` installs
 
@@ -76,6 +110,7 @@ the host beyond Docker Desktop. The kubeconfig is read from `~/.kube/config`.
 
 For each Iceberg table the sandbox or adopter app writes to:
 
+**PowerShell (Windows)**
 ```powershell
 docker run --rm -i `
   -v "$HOME\.kube\config:/kubeconfig:ro" -e KUBECONFIG=/kubeconfig `
@@ -87,6 +122,14 @@ docker run --rm -i `
     --wait
 ```
 
+**WSL2**
+```bash
+helm upgrade --install engine-telemetry-events ./charts/table-pipeline \
+  --namespace micewriter-infra \
+  --set table=telemetry_events \
+  --wait
+```
+
 Resulting Service: `engine-telemetry-events.micewriter-infra.svc:9090`. The SDK's default resolver template (`engine-{table}.micewriter.svc:9090`) reaches this with no per-table override.
 
 ## File Structure
@@ -94,7 +137,7 @@ Resulting Service: `engine-telemetry-events.micewriter-infra.svc:9090`. The SDK'
 ```
 micewriter-local-infra/
   run.ps1             # PowerShell entry point (up / down / status / clean)
-  Makefile            # Alternative for Linux/Mac users
+  Makefile            # WSL2 / Linux / macOS entry point (same operations)
   registry/
     registry.yaml     # registry:2 Deployment + LoadBalancer Service
   minio/

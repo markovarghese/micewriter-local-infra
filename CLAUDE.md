@@ -12,42 +12,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 It also hosts [`charts/table-pipeline/`](charts/table-pipeline/) — the v2 engine pipeline Helm chart. One release per Iceberg table. Not installed by `up` (engine pipelines are deployed per-table, on demand). See the chart README for usage.
 
-Neither `kubectl` nor `helm` need to be installed locally — the scripts run them inside Docker containers.
-
 ## Commands
 
-### Deploy / Manage (Windows, PowerShell)
-
-```powershell
-.\run.ps1 up          # Deploy cert-manager, registry, MinIO, Nessie (idempotent)
-.\run.ps1 down        # Uninstall MinIO + Nessie Helm releases (keeps namespace/PVCs)
-.\run.ps1 status      # Show pod status in micewriter-infra namespace
-.\run.ps1 clean       # Full teardown — uninstalls everything, purges namespace and PVCs
-.\run.ps1 console     # Port-forward MinIO Console to localhost:9001
-.\run.ps1 query-up    # Deploy Trino + Superset (run after up)
-.\run.ps1 query-down  # Tear down Trino + Superset
-```
-
-If blocked by execution policy:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\run.ps1 up
-```
-
-### Deploy / Manage (Linux/Mac, Make)
+### Deploy / Manage
 
 ```bash
-make repo    # Add Nessie Helm repo
-make up      # Full deployment
-make down    # Uninstall releases
-make status  # Check pod status
-make clean   # Complete cleanup
+make repo        # Add Nessie Helm repo (one-time)
+make up          # Deploy cert-manager, registry, MinIO, Nessie (idempotent)
+make down        # Uninstall MinIO + Nessie Helm releases (keeps namespace/PVCs)
+make status      # Show pod status in micewriter-infra namespace
+make clean       # Full teardown — uninstalls everything, purges namespace and PVCs
+make console     # Port-forward MinIO Console to localhost:9001
+make query-up    # Deploy Trino + Querybook (run after up)
+make query-down  # Tear down Trino + Querybook
 ```
 
 ## Architecture
 
-### How `run.ps1` Works
+### How `make up` Works
 
-Two wrapper functions — `Invoke-Kubectl` and `Invoke-Helm` — run `kubectl` and `helm` inside Docker containers, mounting `~/.kube/config` from the host. This is the key design decision that eliminates native tool dependencies.
+`kubectl` and `helm` run natively, reading kubeconfig from `~/.kube/config`. `run.ps1` is a PowerShell alternative (`pwsh ./run.ps1 <cmd>`) that wraps the same operations.
 
 Deployment order in `up`:
 1. Install cert-manager from GitHub release URL
